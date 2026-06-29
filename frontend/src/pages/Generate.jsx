@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Excalidraw } from "@excalidraw/excalidraw";
+import "@excalidraw/excalidraw/index.css";
 
 export default function Generate() {
   const [prompt, setPrompt] = useState("");
@@ -23,6 +24,20 @@ export default function Generate() {
       navigate("/login");
       return;
     }
+
+    // Clear stale/corrupted demo diagrams from previous versions
+    const demoData = localStorage.getItem("demo-diagrams");
+    if (demoData) {
+      try {
+        const parsed = JSON.parse(demoData);
+        if (parsed.length > 0 && (!parsed[0].excalidraw_data?.elements || parsed[0].excalidraw_data.elements.length > 0 && !parsed[0].excalidraw_data.elements[0].seed)) {
+          localStorage.removeItem("demo-diagrams");
+        }
+      } catch {
+        localStorage.removeItem("demo-diagrams");
+      }
+    }
+
     fetchDiagrams();
   }, []);
 
@@ -95,50 +110,78 @@ export default function Generate() {
     });
   }
 
+  // Helper for generating standard Excalidraw element defaults to prevent renderer crashes
+  const createElementDefaults = (type) => ({
+    id: `${type}-${Math.random().toString(36).substr(2, 9)}`,
+    type,
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    angle: 0,
+    strokeColor: "#ffffff",
+    backgroundColor: "transparent",
+    fillStyle: "hachure",
+    strokeWidth: 1.5,
+    strokeStyle: "solid",
+    roughness: 1,
+    opacity: 100,
+    seed: Math.floor(Math.random() * 1000000),
+    version: 1,
+    versionNonce: Math.floor(Math.random() * 1000000),
+    isDeleted: false,
+    boundElements: null,
+    updated: Date.now(),
+    link: null,
+    locked: false,
+    groupIds: [],
+    frameId: null,
+    roundness: null,
+    ...(type === "arrow" ? {
+      points: [[0, 0], [100, 100]],
+      lastCommittedPoint: null,
+      startBinding: null,
+      endBinding: null,
+      startArrowhead: null,
+      endArrowhead: "arrow",
+    } : {}),
+    ...(type === "text" ? {
+      text: "",
+      fontSize: 14,
+      fontFamily: 3, // monospace
+      textAlign: "center",
+      verticalAlign: "middle",
+      baseline: 15,
+      containerId: null,
+      originalText: "",
+    } : {}),
+  });
+
   // Helper helpers for creating mock elements in Demo mode
   function createRect(id, x, y, width, height, label, strokeColor = "#ffffff") {
     const rect = {
+      ...createElementDefaults("rectangle"),
       id,
-      type: "rectangle",
       x,
       y,
       width,
       height,
       strokeColor,
-      backgroundColor: "transparent",
-      fillStyle: "hachure",
-      strokeWidth: 1.5,
-      strokeStyle: "solid",
-      roughness: 1,
-      opacity: 100,
-      angle: 0,
-      isDeleted: false,
     };
     
     if (!label) return [rect];
 
     const textId = `${id}-text`;
     const text = {
+      ...createElementDefaults("text"),
       id: textId,
-      type: "text",
       x: x + 10,
       y: y + (height - 36) / 2,
       width: width - 20,
       height: 36,
       strokeColor: "#ffffff",
-      backgroundColor: "transparent",
-      fillStyle: "hachure",
-      strokeWidth: 1,
-      strokeStyle: "solid",
-      roughness: 0,
-      opacity: 100,
-      angle: 0,
-      isDeleted: false,
       text: label,
-      fontSize: 14,
-      fontFamily: 3, // monospace
-      textAlign: "center",
-      verticalAlign: "middle",
+      originalText: label,
     };
     
     return [rect, text];
@@ -146,46 +189,28 @@ export default function Generate() {
 
   function createArrow(id, startX, startY, endX, endY, label = "") {
     const arrow = {
+      ...createElementDefaults("arrow"),
       id,
-      type: "arrow",
       x: startX,
       y: startY,
       width: Math.abs(endX - startX),
       height: Math.abs(endY - startY),
       strokeColor: "#888888",
-      backgroundColor: "transparent",
-      fillStyle: "hachure",
-      strokeWidth: 1.5,
-      strokeStyle: "solid",
-      roughness: 1,
-      opacity: 100,
-      angle: 0,
-      isDeleted: false,
       points: [[0, 0], [endX - startX, endY - startY]],
     };
     if (!label) return [arrow];
     
     const text = {
+      ...createElementDefaults("text"),
       id: `${id}-text`,
-      type: "text",
       x: startX + (endX - startX) / 2 - 80,
       y: startY + (endY - startY) / 2 - 10,
       width: 160,
       height: 20,
       strokeColor: "#888888",
-      backgroundColor: "transparent",
-      fillStyle: "hachure",
-      strokeWidth: 1,
-      strokeStyle: "solid",
-      roughness: 0,
-      opacity: 100,
-      angle: 0,
-      isDeleted: false,
       text: label,
+      originalText: label,
       fontSize: 11,
-      fontFamily: 3, // monospace
-      textAlign: "center",
-      verticalAlign: "middle",
     };
     return [arrow, text];
   }

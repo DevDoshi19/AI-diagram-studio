@@ -527,17 +527,7 @@ a {
    Excalidraw wrapper.
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-/* Reset SVG display back to inline for Excalidraw */
-.excalidraw-wrapper svg,
-.excalidraw-wrapper img,
-.excalidraw svg,
-.excalidraw img {
-  display: initial !important;
-  width: auto !important;
-  height: auto !important;
-  max-width: none !important;
-  vertical-align: initial !important;
-}
+
 
 /* Excalidraw canvas element must remain block */
 .excalidraw-wrapper canvas {

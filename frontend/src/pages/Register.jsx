@@ -35,7 +35,7 @@ export default function Register() {
 
   function enterDemo() {
     localStorage.setItem('token', 'demo-token')
-    localStorage.setItem('user', JSON.stringify({ name: 'Demo User', email: 'demo@studio.ai' }))
+    localStorage.setItem('user', JSON.stringify({ name: 'Aryan Pandya', email: 'aryan.pandya@exemple.com' }))
     navigate('/generate')
   }
 
