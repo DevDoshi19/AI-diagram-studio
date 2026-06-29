@@ -7,6 +7,7 @@ export default function Generate() {
   const [status, setStatus] = useState("idle"); // idle | streaming | done | error
   const [diagrams, setDiagrams] = useState([]);
   const [hasContent, setHasContent] = useState(false);
+  const [activeDiagramId, setActiveDiagramId] = useState(null);
   const navigate = useNavigate();
 
   // Use a ref for the API — avoids stale closure issues in SSE callbacks
@@ -53,7 +54,7 @@ export default function Generate() {
     api.updateScene({
       elements,
       appState: {
-        viewBackgroundColor: "#0A0A0F",
+        viewBackgroundColor: "#06060B",
       },
     });
 
@@ -121,6 +122,9 @@ export default function Generate() {
             setHasContent(true);
           }
 
+          if (data.diagram_id) {
+            setActiveDiagramId(data.diagram_id);
+          }
           fetchDiagrams();
         } catch (err) {
           console.error("JSON parse error:", err, "\nRaw content:", fullContent);
@@ -147,6 +151,7 @@ export default function Generate() {
       const api = excalidrawAPIRef.current;
       if (api) {
         applyElements(api, elements);
+        setActiveDiagramId(diagram.id);
       }
     } catch (e) {
       console.error("Failed to load diagram:", e);
@@ -158,69 +163,114 @@ export default function Generate() {
     navigate("/login");
   }
 
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffDay < 7) return `${diffDay}d ago`;
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        background: "var(--bg)",
-        overflow: "hidden",
-      }}
-    >
+    <div style={{ display: "flex", height: "100vh", background: "var(--bg)", overflow: "hidden" }}>
+
       {/* ── Left Sidebar ── */}
-      <div
-        style={{
-          width: "280px",
-          flexShrink: 0,
-          borderRight: "1px solid var(--border)",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--surface)",
-        }}
-      >
+      <div className="sidebar">
+
         {/* Header */}
-        <div style={{ padding: "20px", borderBottom: "1px solid var(--border)" }}>
-          <span className="mono" style={{ color: "var(--accent)", fontSize: "12px" }}>
-            $ ai-diagram-studio
-          </span>
-          <p style={{ color: "var(--muted)", fontSize: "12px", marginTop: "4px" }}>
-            {user.email}
-          </p>
+        <div style={{ padding: "20px 20px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{
+                width: "30px",
+                height: "30px",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--accent)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "var(--bg)",
+                fontFamily: "Space Grotesk, sans-serif",
+              }}>
+                ◇
+              </div>
+              <span className="mono" style={{ color: "var(--text-secondary)", fontSize: "11px", letterSpacing: "0.05em" }}>
+                AI DIAGRAM STUDIO
+              </span>
+            </div>
+          </div>
+
+          {/* User info */}
+          <div style={{
+            marginTop: "16px",
+            padding: "10px 12px",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--bg)",
+            border: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}>
+            <div style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "12px",
+              fontWeight: "600",
+              color: "var(--bg)",
+              fontFamily: "Space Grotesk, sans-serif",
+              flexShrink: 0,
+            }}>
+              {(user.name || user.email || "U").charAt(0).toUpperCase()}
+            </div>
+            <div style={{ overflow: "hidden" }}>
+              <p style={{
+                color: "var(--text)",
+                fontSize: "12px",
+                fontWeight: "500",
+                whiteSpace: "nowrap",
+                textOverflow: "ellipsis",
+                overflow: "hidden",
+              }}>
+                {user.name || "User"}
+              </p>
+              <p className="mono" style={{
+                color: "var(--muted)",
+                fontSize: "10px",
+                whiteSpace: "nowrap",
+                textOverflow: "ellipsis",
+                overflow: "hidden",
+              }}>
+                {user.email}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Prompt input */}
-        <div style={{ padding: "20px", borderBottom: "1px solid var(--border)" }}>
-          <label
-            className="mono"
-            style={{
-              fontSize: "11px",
-              color: "var(--muted)",
-              display: "block",
-              marginBottom: "8px",
-            }}
-          >
-            DESCRIBE YOUR DIAGRAM
-          </label>
+        <hr className="divider" />
+
+        {/* Prompt input section */}
+        <div style={{ padding: "20px" }}>
+          <label className="field-label">DESCRIBE YOUR DIAGRAM</label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="A microservices architecture with API gateway, auth service, and PostgreSQL..."
-            rows={5}
-            style={{
-              width: "100%",
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              color: "var(--text)",
-              padding: "12px",
-              fontSize: "13px",
-              fontFamily: "JetBrains Mono, monospace",
-              outline: "none",
-              resize: "none",
-              lineHeight: "1.6",
-              boxSizing: "border-box",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            rows={4}
+            className="textarea-field"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleGenerate();
             }}
@@ -229,115 +279,128 @@ export default function Generate() {
           <button
             onClick={handleGenerate}
             disabled={status === "streaming" || !prompt.trim()}
-            style={{
-              width: "100%",
-              marginTop: "10px",
-              background: status === "streaming" ? "var(--border)" : "var(--accent)",
-              color: "#0A0A0F",
-              padding: "11px",
-              fontSize: "13px",
-              fontWeight: "600",
-              fontFamily: "Space Grotesk",
-              border: "none",
-              cursor: status === "streaming" ? "not-allowed" : "pointer",
-              transition: "background 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              if (status !== "streaming") e.target.style.background = "var(--accent-dim)";
-            }}
-            onMouseLeave={(e) => {
-              if (status !== "streaming") e.target.style.background = "var(--accent)";
-            }}
+            className="btn-primary"
+            style={{ marginTop: "12px" }}
           >
-            {status === "streaming" ? "⟳ Generating..." : "⌘ Generate →"}
+            {status === "streaming" ? (
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+                Generating
+                <span className="loading-dots"><span></span><span></span><span></span></span>
+              </span>
+            ) : (
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M14 2L7 13l-1-4-4-1L14 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Generate diagram
+              </span>
+            )}
           </button>
 
-          {/* Status line */}
+          {/* Status indicators */}
           {status === "streaming" && (
-            <p className="mono" style={{ color: "var(--accent)", fontSize: "11px", marginTop: "8px" }}>
-              ▸ streaming from AI...
-            </p>
+            <div className="status-bar status-streaming animate-fade-in">
+              <span className="status-dot streaming"></span>
+              streaming from AI...
+            </div>
           )}
           {status === "error" && (
-            <p className="mono" style={{ color: "#FF5F5F", fontSize: "11px", marginTop: "8px" }}>
-              ✗ generation failed — try again
-            </p>
+            <div className="status-bar status-error animate-fade-in">
+              <span className="status-dot error"></span>
+              generation failed — try again
+            </div>
           )}
           {status === "done" && (
-            <p className="mono" style={{ color: "var(--accent)", fontSize: "11px", marginTop: "8px" }}>
-              ✓ saved to github
-            </p>
+            <div className="status-bar status-done animate-fade-in">
+              <span className="status-dot done"></span>
+              diagram generated ✓
+            </div>
           )}
         </div>
 
+        <hr className="divider" />
+
         {/* Diagram history */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-          <label
-            className="mono"
-            style={{
-              fontSize: "11px",
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 12px" }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 6px",
+            marginBottom: "12px",
+          }}>
+            <label className="field-label" style={{ margin: 0 }}>HISTORY</label>
+            <span className="mono" style={{
+              fontSize: "10px",
               color: "var(--muted)",
-              display: "block",
-              marginBottom: "12px",
-            }}
-          >
-            HISTORY ({diagrams.length})
-          </label>
+              background: "var(--bg)",
+              padding: "2px 8px",
+              borderRadius: "999px",
+              border: "1px solid var(--border)",
+            }}>
+              {diagrams.length}
+            </span>
+          </div>
 
           {diagrams.length === 0 && (
-            <p style={{ color: "var(--muted)", fontSize: "12px" }}>No diagrams yet.</p>
+            <div style={{
+              padding: "32px 16px",
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: "24px", marginBottom: "8px", opacity: 0.4 }}>📊</div>
+              <p style={{ color: "var(--muted)", fontSize: "12px", lineHeight: "1.6" }}>
+                No diagrams yet.
+                <br />
+                <span style={{ fontSize: "11px" }}>Generate your first one above!</span>
+              </p>
+            </div>
           )}
 
           {diagrams.map((d) => (
             <div
               key={d.id}
               onClick={() => loadDiagram(d)}
+              className="history-item"
               style={{
-                padding: "10px 12px",
-                marginBottom: "6px",
-                border: "1px solid var(--border)",
-                cursor: "pointer",
-                transition: "border-color 0.15s",
+                background: activeDiagramId === d.id ? "var(--bg-elevated)" : "transparent",
+                borderColor: activeDiagramId === d.id ? "var(--border-hover)" : "transparent",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             >
-              <p style={{ fontSize: "12px", color: "var(--text)", marginBottom: "4px" }}>
+              <p style={{
+                fontSize: "12px",
+                color: "var(--text)",
+                marginBottom: "6px",
+                lineHeight: "1.4",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}>
                 {d.title}
               </p>
-              <p className="mono" style={{ fontSize: "10px", color: "var(--muted)" }}>
-                {new Date(d.created_at).toLocaleDateString()}
-                {d.llm_model === "cache" && " · ⚡ cached"}
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span className="mono" style={{ fontSize: "10px", color: "var(--muted)" }}>
+                  {formatDate(d.created_at)}
+                </span>
+                {d.llm_model === "cached" && (
+                  <span className="tag" style={{ fontSize: "9px", padding: "1px 6px" }}>
+                    ⚡ cached
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
 
         {/* Logout */}
-        <div style={{ padding: "16px", borderTop: "1px solid var(--border)" }}>
-          <button
-            onClick={handleLogout}
-            style={{
-              width: "100%",
-              background: "transparent",
-              border: "1px solid var(--border)",
-              color: "var(--muted)",
-              padding: "9px",
-              fontSize: "12px",
-              fontFamily: "Space Grotesk",
-              cursor: "pointer",
-              transition: "border-color 0.15s, color 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.borderColor = "#FF5F5F";
-              e.target.style.color = "#FF5F5F";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.borderColor = "var(--border)";
-              e.target.style.color = "var(--muted)";
-            }}
-          >
-            Sign out
+        <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)" }}>
+          <button onClick={handleLogout} className="btn-ghost">
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Sign out
+            </span>
           </button>
         </div>
       </div>
@@ -348,30 +411,23 @@ export default function Generate() {
         Excalidraw reads the parent's bounding rect on mount to size its canvas.
         flex:1 alone can give 0-height in some browsers — add height:100% to be safe.
       */}
-      <div style={{ flex: 1, position: "relative", height: "100vh", overflow: "hidden" }}>
+      <div className="excalidraw-wrapper">
 
         {/* Empty state overlay — pointer-events:none so it never blocks the canvas */}
         {!hasContent && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 2,
-              pointerEvents: "none",
-            }}
-          >
-            <div style={{ textAlign: "center" }}>
-              <p className="mono" style={{ color: "var(--muted)", fontSize: "13px" }}>
-                describe a system → hit generate
+          <div className="empty-state">
+            <div className="empty-state-content animate-fade-in">
+              <div className="empty-state-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M3 9h18M9 21V9"/>
+                </svg>
+              </div>
+              <p style={{ color: "var(--text-secondary)", fontSize: "14px", fontWeight: "500" }}>
+                Describe a system to get started
               </p>
-              <p
-                className="mono"
-                style={{ color: "var(--border)", fontSize: "11px", marginTop: "8px" }}
-              >
-                ⌘ + Enter to generate
+              <p className="mono" style={{ color: "var(--muted)", fontSize: "11px", marginTop: "8px" }}>
+                Ctrl + Enter to generate
               </p>
             </div>
           </div>
@@ -383,7 +439,7 @@ export default function Generate() {
           initialData={{
             elements: [],
             appState: {
-              viewBackgroundColor: "#0A0A0F",
+              viewBackgroundColor: "#06060B",
               // Hide the toolbar / welcome screen icons
               isLoading: false,
             },
