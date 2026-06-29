@@ -24,19 +24,13 @@ export default function Register() {
       navigate('/generate')
     } catch (err) {
       if (!err.response) {
-        setError('Backend unavailable — use "Enter Demo" below to preview UI')
+        setError('Cannot connect to server — please verify backend is running')
       } else {
         setError(err.response?.data?.detail || 'Registration failed — try again')
       }
     } finally {
       setLoading(false)
     }
-  }
-
-  function enterDemo() {
-    localStorage.setItem('token', 'demo-token')
-    localStorage.setItem('user', JSON.stringify({ name: 'Aryan Pandya', email: 'aryan.pandya@exemple.com' }))
-    navigate('/generate')
   }
 
   const fields = [
@@ -129,26 +123,6 @@ export default function Register() {
               ) : 'Get started →'}
             </button>
           </form>
-
-          {/* Demo mode separator */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            margin: '20px 0 16px',
-          }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-            <span className="mono" style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.1em' }}>OR</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          </div>
-
-          <button
-            type="button"
-            onClick={enterDemo}
-            className="btn-ghost"
-          >
-            Enter Demo →
-          </button>
         </div>
 
         {/* Footer link */}
