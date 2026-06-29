@@ -1,4 +1,5 @@
-@import "tailwindcss";
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    DESIGN TOKENS
@@ -456,38 +457,43 @@ a {
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .history-item {
   padding: 12px 14px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s var(--ease-out);
   position: relative;
+  overflow: hidden;
 }
 
 .history-item:hover {
-  border-color: var(--border-hover);
   background: var(--bg-elevated);
 }
 
-.history-item:active {
-  transform: scale(0.99);
+.history-item.active {
+  background: var(--bg-elevated) !important;
+  border-color: var(--border) !important;
 }
 
 .history-item::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2px;
+  top: 0;
+  width: 3px;
   height: 0;
   background: var(--accent);
-  border-radius: 1px;
   transition: height 0.2s var(--ease-out);
 }
 
 .history-item:hover::before {
   height: 60%;
+  top: 20%;
+}
+
+.history-item.active::before {
+  height: 100% !important;
+  top: 0 !important;
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -512,7 +518,57 @@ a {
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    EXCALIDRAW OVERRIDES (dark theme polish)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CRITICAL: Tailwind 4 preflight sets
+   `img, svg { display: block }` and resets
+   button backgrounds. This completely breaks
+   Excalidraw's internal icon rendering.
+   We must undo ALL Tailwind resets inside the
+   Excalidraw wrapper.
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Reset SVG display back to inline for Excalidraw */
+.excalidraw-wrapper svg,
+.excalidraw-wrapper img,
+.excalidraw svg,
+.excalidraw img {
+  display: initial !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  vertical-align: initial !important;
+}
+
+/* Excalidraw canvas element must remain block */
+.excalidraw-wrapper canvas {
+  display: block !important;
+}
+
+/* Reset button styles inside Excalidraw */
+.excalidraw-wrapper button,
+.excalidraw button {
+  background: initial;
+  border-radius: initial;
+  border: initial;
+  opacity: initial;
+}
+
+/* Reset heading styles inside Excalidraw */
+.excalidraw-wrapper h1,
+.excalidraw-wrapper h2,
+.excalidraw-wrapper h3,
+.excalidraw-wrapper h4,
+.excalidraw-wrapper h5 {
+  font-size: initial;
+  font-weight: initial;
+}
+
+/* Reset list styles inside Excalidraw */
+.excalidraw-wrapper ol,
+.excalidraw-wrapper ul {
+  list-style: initial;
+}
+
 .excalidraw .App-menu {
   border-radius: var(--radius-md) !important;
 }
