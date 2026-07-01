@@ -15,3 +15,6 @@ class DiagramGenerateResponse(BaseModel):
     created_at: datetime
     user_id: uuid.UUID
     model_config = {"from_attributes": True}
+
+class DiagramUpdateRequest(BaseModel):
+    excalidraw_data: dict[str, Any]

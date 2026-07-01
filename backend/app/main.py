@@ -5,12 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
 from rich import panel, print
 
-from app.core.config import settings          
-from app.api.routers import diagrams
+from app.core.config import settings
 from app.database.database import engine, Base 
 from app.database.redis import get_redis, close_redis
 from app.models import diagram ,user # noqa: F401
-from app.api.routers import auth
+from app.api.routers import auth,diagrams,health
 
 @asynccontextmanager
 async def lifespan_handler(app: FastAPI):
@@ -39,6 +38,7 @@ app = FastAPI(
 
 app.include_router(diagrams.router, prefix="/api/v1/diagrams", tags=["Diagrams"])
 app.include_router(auth.router , prefix="/api/v1/auth",tags=["Auth"])
+app.include_router(health.router, prefix="/api/v1/health", tags=["Health"])
 
 @app.get("/", response_model=None)
 async def root():
