@@ -1,20 +1,21 @@
 import json
 import uuid
 
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependecies import get_current_user
+from app.core.limiter import limiter
 from app.database.database import get_db
 from app.models.diagram import Diagram
 from app.models.user import User
 from app.schemas.diagram import DiagramGenerateRequest, DiagramGenerateResponse, DiagramUpdateRequest
-from app.service.diagram import save_diagram
-from app.service.llm import stream_mermaid, get_model, generate_mermaid
 from app.service.cache import get_cached_diagram, set_cached_diagram
+from app.service.diagram import save_diagram
 from app.service.github import push_diagram_to_github
+from app.service.llm import stream_mermaid, get_model, generate_mermaid
 
 router = APIRouter()
 
@@ -34,20 +35,20 @@ async def list_diagrams(
 
 
 @router.post("/generate", response_model=DiagramGenerateResponse)
+@limiter.limit("10/minute")
 async def generate_diagram(
-    request: DiagramGenerateRequest,
+    request: Request,
+    req: DiagramGenerateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Check cache first
-    cached = await get_cached_diagram(request.prompt)
+    cached = await get_cached_diagram(req.prompt)
 
     if cached:
-        # Cache hit to save to DB only, GitHub already has this file
         diagram = await save_diagram(
             db=db,
-            title=request.prompt[:50],
-            prompt=request.prompt,
+            title=req.prompt[:50],
+            prompt=req.prompt,
             excalidraw_data=cached,
             llm_model="cached",
             tokens_used=0,
@@ -55,31 +56,28 @@ async def generate_diagram(
         )
         return diagram
 
-    # Cache miss then call OpenAI
     try:
-        mermaid_code, model, tokens = await generate_mermaid(request.prompt)
+        mermaid_code, model, tokens = await generate_mermaid(req.prompt)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
 
     data = {"mermaid": mermaid_code}
 
-    # Save to cache for future requests
-    await set_cached_diagram(request.prompt, data)
+    await set_cached_diagram(req.prompt, data)
 
     diagram = await save_diagram(
         db=db,
-        title=request.prompt[:50],
-        prompt=request.prompt,
+        title=req.prompt[:50],
+        prompt=req.prompt,
         excalidraw_data=data,
         llm_model=model,
         tokens_used=tokens,
         user_id=current_user.id
     )
 
-    # Push to GitHub — will skip automatically if prompt hash already exists
     github_url = await push_diagram_to_github(
         diagram_id=str(diagram.id),
-        prompt=request.prompt,
+        prompt=req.prompt,
         excalidraw_data=data,
         user_email=current_user.email
     )
@@ -90,7 +88,9 @@ async def generate_diagram(
 
 
 @router.get("/stream")
+@limiter.limit("10/minute")
 async def stream_diagram(
+    request: Request,
     prompt: str,
     token: str,
     db: AsyncSession = Depends(get_db),
@@ -107,7 +107,6 @@ async def stream_diagram(
         raise HTTPException(status_code=401, detail="User not found")
 
     async def event_generator():
-
         cached = await get_cached_diagram(prompt)
         if cached:
             mermaid_code = cached.get("mermaid", "")
@@ -124,8 +123,7 @@ async def stream_diagram(
             print(f"Stream: served from cache for prompt: {prompt[:50]}")
             yield f"data: {json.dumps({'type': 'done', 'diagram_id': str(diagram.id), 'mermaid': mermaid_code})}\n\n"
             return
-    
-        # Cache miss then stream from OpenAI
+
         full_response = ""
 
         async for chunk in stream_mermaid(prompt):
@@ -133,7 +131,6 @@ async def stream_diagram(
                 mermaid_code = full_response.strip()
                 data = {"mermaid": mermaid_code}
 
-                # Cache it so next time we skip the LLM + GitHub entirely
                 await set_cached_diagram(prompt, data)
 
                 diagram = await save_diagram(
@@ -147,7 +144,6 @@ async def stream_diagram(
                 )
                 await db.commit()
 
-                # Push to GitHub — will skip if prompt hash already exists
                 github_url = await push_diagram_to_github(
                     diagram_id=str(diagram.id),
                     prompt=prompt,

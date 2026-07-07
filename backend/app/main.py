@@ -1,5 +1,10 @@
 from contextlib import asynccontextmanager
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
+
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from scalar_fastapi import get_scalar_api_reference
@@ -35,6 +40,9 @@ app = FastAPI(
     summary="Convert plain text to Excalidraw diagrams using AI",
     lifespan=lifespan_handler
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(diagrams.router, prefix="/api/v1/diagrams", tags=["Diagrams"])
 app.include_router(auth.router , prefix="/api/v1/auth",tags=["Auth"])
