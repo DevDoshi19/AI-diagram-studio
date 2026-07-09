@@ -24,5 +24,7 @@ class Setting(BaseSettings):
     github_repo_owner: str = ""
     github_repo_name: str = ""
 
+    cors_origins: str = "http://localhost:5173"
+
 settings = Setting()
 
