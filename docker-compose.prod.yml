@@ -2,6 +2,7 @@ services:
   # -- Redis --
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
@@ -12,6 +13,7 @@ services:
   # -- FastAPI Backend --
   backend:
     build: ./backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
@@ -30,6 +32,7 @@ services:
   # -- React Frontend (served by Nginx) --
   frontend:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
