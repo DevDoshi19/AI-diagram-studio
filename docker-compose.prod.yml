@@ -12,7 +12,7 @@ services:
       retries: 5
   # -- FastAPI Backend --
   backend:
-    build: ./backend
+    image: 030987178431.dkr.ecr.ap-south-1.amazonaws.com/ai-diagram-studio-backend:latest
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -31,7 +31,7 @@ services:
       start_period: 20s
   # -- React Frontend (served by Nginx) --
   frontend:
-    build: ./frontend
+    image: 030987178431.dkr.ecr.ap-south-1.amazonaws.com/ai-diagram-studio-frontend:latest
     restart: unless-stopped
     ports:
       - "80:80"
